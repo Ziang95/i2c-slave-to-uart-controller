@@ -1,6 +1,5 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity i2c_slave is
@@ -14,22 +13,57 @@ entity i2c_slave is
 		scl_in	: 	in std_logic;
 		scl_out	:	out std_logic;
 		sda_out	:	out std_logic;
-		state_led : out std_logic_vector(2 downto 0)
+		
+		data_to_fifo : out std_logic_vector(7 downto 0);
+		data_from_fifo : in std_logic_vector(7 downto 0);
+		write_fifo_en : out std_logic;
+		read_fifo_en : out std_logic;
+		
+		out_fifo_full : in std_logic;
+		out_fifo_empty : in std_logic;
+		in_fifo_empty : in std_logic;
+		reset_in_fifo : out std_logic;
+		
+		state_led : out std_logic_vector(3 downto 0)
 	);
 end i2c_slave;
 
 architecture behavioral of i2c_slave is
 
-type slave_state is (IDLE, RECEV, ACK);
+type slave_state is (IDLE,
+							ANSWR,
+							ACK,
+							RECEV,
+							CLR_IN_FIFO,
+							SEND,
+							WAIT_ACK,
+							WRITE_FIFO,
+							READ_FIFO,
+							NACK
+							);
 
 signal state : slave_state;
 signal next_state : slave_state;
 
 signal scl_ris, scl_fal : std_logic;
 signal sda_ris, sda_fal : std_logic;
-signal bit_cnt : integer range 0 to 8;
-signal byte : std_logic_vector(7 downto 0);
+
+signal recv_byte : std_logic_vector(7 downto 0);
+signal send_byte : std_logic_vector(7 downto 0);
+signal recv_bit_cnt : integer range 0 to 8;
+signal send_bit_cnt : integer range 0 to 9;
+
+signal r_w : std_logic;
+
 signal ack_flg : std_logic;
+signal wait_ack_flg : std_logic;
+signal master_ack_bit : std_logic;
+
+signal byte_wrttn : std_logic;
+signal byte_ready : std_logic;
+signal byte_reqst : std_logic;
+signal fifo_clrd : std_logic;
+
 signal start : std_logic;
 signal stop : std_logic;
 
@@ -57,7 +91,7 @@ begin
 	scl_fal <= not scl_p and scl_pp;
 	sda_ris <= sda_p and not sda_pp;
 	sda_fal <= not sda_p and sda_pp;
-
+	
 	START_SIGN:process(clk, rst)
 	begin
 		if rst = '0' then
@@ -93,73 +127,258 @@ begin
 		end if;
  	end process SYNC_PROC;
 	
-	COUNT_DEC:process(clk, rst)
+	RECV_CNT_DEC:process(clk, rst)
 	begin
 		if rst = '0' then
-			bit_cnt <= 8;
+			recv_bit_cnt <= 8;
 		elsif falling_edge(clk) then
-			if state = RECEV then
+			if state = ANSWR or state = RECEV then
 				if scl_ris = '1' then
-					byte(bit_cnt - 1) <= sda_p;
-					bit_cnt <= bit_cnt - 1;
+					recv_byte(recv_bit_cnt - 1) <= sda_p;
+					recv_bit_cnt <= recv_bit_cnt - 1;
 				end if;
 			else
-				bit_cnt <= 8;
+				recv_bit_cnt <= 8;
 			end if;
 		end if;
-	end process COUNT_DEC;
+	end process RECV_CNT_DEC;
 	
-	BYTE_FLG:process(clk, rst)
+	ACK_FLG_PROC:process(clk, rst)
 	begin
 		if rst = '0' then
 			ack_flg <= '0';
 		elsif falling_edge(clk) and scl_fal = '1' then
-			if bit_cnt = 0 then
+			if recv_bit_cnt = 0 then
 				ack_flg <= '1';
 			else
 				ack_flg <= '0';
 			end if;
 		end if;
-	end process BYTE_FLG;
+	end process ACK_FLG_PROC;
 	
-	OUTPUT_DECODE:process(rst, state, start, stop, ack_flg)
+	SEND_CNT_DEC:process(clk, rst)
+	begin
+		if rst = '0' then
+			send_bit_cnt <= 9;
+		elsif falling_edge(clk) and scl_fal = '1' then
+			if state = SEND then
+				send_bit_cnt <= send_bit_cnt - 1;
+			else
+				send_bit_cnt <= 9;
+			end if;
+		end if;
+	end process SEND_CNT_DEC;
+	
+	MASTER_ACK_BIT_PROC:process(clk, rst)
+	begin
+		if rst = '0' then
+			master_ack_bit <= '1';
+		elsif falling_edge(clk) and scl_ris = '1' then
+			if state = WAIT_ACK then
+				master_ack_bit <= sda_p;
+			end if;
+		end if;
+	end process MASTER_ACK_BIT_PROC;
+	
+	WAIT_ACK_FLG_PROC:process(clk, rst)
+	begin
+		if rst = '0' then
+			wait_ack_flg <= '0';
+		elsif falling_edge(clk) then
+			if send_bit_cnt = 0 then
+				wait_ack_flg <= '1';
+			else
+				wait_ack_flg <= '0';
+			end if;
+		end if;
+	end process WAIT_ACK_FLG_PROC;
+	
+	BYTE_WRITE_PROC:process(clk, rst)
+	begin
+		if rst = '0' then
+			byte_wrttn <= '0';
+		elsif falling_edge(clk) then
+			if state = WRITE_FIFO or state = NACK then
+				if byte_wrttn = '0' and out_fifo_full = '0' then
+					write_fifo_en <= '1';
+					if state = NACK then
+						data_to_fifo <= "11111111";
+					else
+						data_to_fifo <= recv_byte;
+					end if;
+					byte_wrttn <= '1';
+				else
+					write_fifo_en <= '0';
+				end if;
+			else
+				write_fifo_en <= '0';
+				byte_wrttn <= '0';
+			end if;
+		end if;
+	end process BYTE_WRITE_PROC;
+	
+	BYTE_READ_PROC:process(clk, rst)
+	begin
+		if rst = '0' then
+			byte_reqst <= '0';
+			byte_ready <= '0';
+		elsif falling_edge(clk) then
+			if state = READ_FIFO then
+				if byte_reqst = '0' then
+					if out_fifo_empty = '0' then
+						read_fifo_en <= '1';
+						byte_reqst <= '1';
+					end if;
+				else
+					read_fifo_en <= '0';
+					send_byte <= data_from_fifo;
+					byte_ready <= '1';
+				end if;
+			else
+				read_fifo_en <= '0';
+				byte_ready <= '0';
+				byte_reqst <= '0';
+			end if;
+		end if;
+	end process BYTE_READ_PROC;
+	
+	FIFO_CLRD_PROC:process(clk, rst)
+	begin
+		if rst = '0' then
+			fifo_clrd <= '0';
+			reset_in_fifo <= '0';
+		elsif falling_edge(clk) then
+			if state = CLR_IN_FIFO then
+				if fifo_clrd = '0' then
+					fifo_clrd <= '1';
+					reset_in_fifo <= '1';
+				else
+					reset_in_fifo <= '0';
+				end if;
+			else
+				fifo_clrd <= '0';
+				reset_in_fifo <= '0';
+			end if;
+		end if;
+	end process FIFO_CLRD_PROC;
+	
+	OUTPUT_DECODE:process(rst, state, start, stop, ack_flg, byte_wrttn, send_bit_cnt)
 	begin
 		if (rst = '0') then
 			next_state <= IDLE;
 			sda_out <= '1';
 			scl_out <= '1';
+			r_w <= '0';
 		else
 			case state is
 				when IDLE =>
-					state_led <= "110";
-					sda_out <= '1';
+					state_led <= not "0001";
 					scl_out <= '1';
+					sda_out <= '1';
 					if start = '1' then
-						next_state <= RECEV;
+						next_state <= ANSWR;
 					else
 						next_state <= IDLE;
 					end if;
-				when RECEV =>
-					state_led <= "101";
-					sda_out <= '1';
+				when ANSWR =>
+					state_led <= not "0010";
 					scl_out <= '1';
-					if ack_flg = '1' then
-						next_state <= ACK;
-					elsif stop = '1' then
+					sda_out <= '1';
+					if stop = '1' then
 						next_state <= IDLE;
+					elsif ack_flg = '1' then
+						if recv_byte(7 downto 1) = i2c_address(6 downto 0) then
+							r_w <= recv_byte(0);
+							if recv_byte(0) = '0' then
+								next_state <= WRITE_FIFO;
+							else
+								next_state <= CLR_IN_FIFO;
+							end if;
+						else
+							next_state <= IDLE;
+						end if;
 					else
-						next_state <= RECEV;
+						next_state <= ANSWR;
 					end if;
 				when ACK =>
-					state_led <= "011";
-					if byte(7 downto 1) = i2c_address(6 downto 0) then
-						sda_out <= '0';
-					end if;
+					state_led <= not "0011";
 					scl_out <= '1';
+					sda_out <= '0';
 					if ack_flg = '0' then
-						next_state <= RECEV;
+						if r_w = '0' then
+							next_state <= RECEV;
+						else
+							next_state <= SEND;
+						end if;
 					else
 						next_state <= ACK;
+					end if;
+				when RECEV =>
+					state_led <= not "0100";
+					scl_out <= '1';
+					sda_out <= '1';
+					if stop = '1' then
+						next_state <= IDLE;
+					elsif ack_flg = '1' then
+						next_state <= WRITE_FIFO;
+					else
+						next_state <= RECEV;
+					end if;
+				when CLR_IN_FIFO =>
+					state_led <= not "0101";
+					scl_out <= '0';
+					sda_out <= '1';
+					if fifo_clrd = '1' then
+						next_state <= WRITE_FIFO;
+					else
+						next_state <= CLR_IN_FIFO;
+					end if;
+				when SEND =>
+					state_led <= not "0110";
+					scl_out <= '1';
+					sda_out <= send_byte(send_bit_cnt - 1);
+					if wait_ack_flg = '1' then
+						next_state <= WAIT_ACK;
+					else
+						next_state <= SEND;
+					end if;
+				when WAIT_ACK =>
+					state_led <= not "0111";
+					scl_out <= '1';
+					sda_out <= '1';
+					if wait_ack_flg = '0' then
+						if master_ack_bit = '1' then
+							next_state <= NACK;
+						else
+							next_state <= READ_FIFO;
+						end if;
+					end if;
+				when WRITE_FIFO =>
+					state_led <= not "1000";
+					scl_out <= '0';
+					sda_out <= '0';
+					if byte_wrttn = '1' then
+						next_state <= ACK;
+					else
+						next_state <= WRITE_FIFO;
+					end if;
+				when READ_FIFO =>
+					state_led <= not "1001";
+					scl_out <= '0';
+					sda_out <= '1';
+					if byte_ready = '1' then
+						next_state <= SEND;
+					else
+						next_state <= READ_FIFO;
+					end if;
+				when NACK =>
+					state_led <= not "1010";
+					scl_out <= '0';
+					sda_out <= '1';
+					if byte_wrttn = '1' then
+						next_state <= IDLE;
+					else
+						next_state <= NACK;
 					end if;
 			end case;
 		end if;

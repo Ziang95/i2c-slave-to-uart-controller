@@ -15,7 +15,7 @@ signal clk : std_logic;
 signal sda : std_logic;
 signal rst_i : std_logic;
 
-signal state_led_i : std_logic_vector(2 downto 0);
+signal state_led_i : std_logic_vector(3 downto 0);
 
 component i2c_uart is
 port
@@ -24,7 +24,9 @@ port
 	clk	:	in std_logic;
 	scl	:	inout std_logic;
 	sda	:	inout std_logic;
-	state_led : out std_logic_vector(2 downto 0)
+	empty :	out std_logic;
+	full	:	out std_logic;
+	state_led : out std_logic_vector(3 downto 0)
 );
 end component;
 

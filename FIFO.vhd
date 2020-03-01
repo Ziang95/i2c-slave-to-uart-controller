@@ -2,7 +2,7 @@ library IEEE;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
 
-entity std_FIFO is
+entity std_fifo is
 	generic(	
 		constant data_width : positive := 8;
 		constant fifo_depth : positive := 256
@@ -17,13 +17,13 @@ entity std_FIFO is
 		empty		: out std_logic;
 		full		: out std_logic
 	);
-end std_FIFO;
+end std_fifo;
 
-architecture behavioral of std_FIFO is
+architecture behavioral of std_fifo is
 
 begin
 
-	fifo_proc:process(clk)
+	fifo_proc:process(clk, rst)
 		type fifo_memory is array (0 to fifo_depth -1) of std_logic_vector(data_width - 1 downto 0);
 		variable mem : fifo_memory;
 		variable head : natural range 0 to fifo_depth - 1;
@@ -32,10 +32,10 @@ begin
 		variable looped : boolean;
 	begin
 		if rising_edge(clk) then
-			if rst = '1' then
+			if rst = '0' then
 				head := 0;
 				tail := 0;
-				looped = false;
+				looped := false;
 				full <= '0';
 				empty <= '0';
 			else
@@ -45,7 +45,7 @@ begin
 						
 						if head = fifo_depth - 1 then
 							head := 0;
-							looped = false;
+							looped := false;
 						else
 							head := head + 1;
 						end if;
@@ -55,11 +55,11 @@ begin
 				
 				if write_en = '1' then
 					if looped = false or head /= tail then
-						mem(tail) <= data_in;
+						mem(tail) := data_in;
 						
 						if tail = fifo_depth - 1 then
 							tail := 0;
-							looped = true;
+							looped := true;
 						else
 							tail := tail + 1;
 						end if;
@@ -76,6 +76,7 @@ begin
 					empty <= '0';
 					full <= '0';
 				end if;
+			end if;
 		end if;
-	end process fifo_memory;
+	end process fifo_proc;
 end behavioral;
