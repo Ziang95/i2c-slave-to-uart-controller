@@ -14,3 +14,5 @@ db/
 *.qsf
 
 *.qpf
+
+.qsys_edit/

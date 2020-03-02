@@ -1,6 +1,6 @@
 library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+	 use ieee.std_logic_1164.all;
+	 use ieee.numeric_std.all;
 
 entity i2c_slave is
 	generic(
@@ -14,15 +14,15 @@ entity i2c_slave is
 		scl_out	:	out std_logic;
 		sda_out	:	out std_logic;
 		
-		data_to_fifo : out std_logic_vector(7 downto 0);
+		data_to_fifo 	: out std_logic_vector(7 downto 0);
 		data_from_fifo : in std_logic_vector(7 downto 0);
-		write_fifo_en : out std_logic;
-		read_fifo_en : out std_logic;
+		write_fifo_en 	: out std_logic;
+		read_fifo_en 	: out std_logic;
 		
-		out_fifo_full : in std_logic;
+		out_fifo_full 	: in std_logic;
 		out_fifo_empty : in std_logic;
-		in_fifo_empty : in std_logic;
-		reset_in_fifo : out std_logic;
+		in_fifo_empty 	: in std_logic;
+		reset_in_fifo 	: out std_logic;
 		
 		state_led : out std_logic_vector(3 downto 0)
 	);
@@ -197,6 +197,7 @@ begin
 	begin
 		if rst = '0' then
 			byte_wrttn <= '0';
+			write_fifo_en <= '0';
 		elsif falling_edge(clk) then
 			if state = WRITE_FIFO or state = NACK then
 				if byte_wrttn = '0' and out_fifo_full = '0' then
@@ -222,10 +223,11 @@ begin
 		if rst = '0' then
 			byte_reqst <= '0';
 			byte_ready <= '0';
+			read_fifo_en <= '0';
 		elsif falling_edge(clk) then
 			if state = READ_FIFO then
 				if byte_reqst = '0' then
-					if out_fifo_empty = '0' then
+					if in_fifo_empty = '0' then
 						read_fifo_en <= '1';
 						byte_reqst <= '1';
 					end if;
@@ -308,7 +310,7 @@ begin
 						if r_w = '0' then
 							next_state <= RECEV;
 						else
-							next_state <= SEND;
+							next_state <= READ_FIFO;
 						end if;
 					else
 						next_state <= ACK;

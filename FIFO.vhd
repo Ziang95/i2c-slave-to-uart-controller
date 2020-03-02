@@ -1,6 +1,6 @@
-library IEEE;
-USE IEEE.STD_LOGIC_1164.ALL;
-USE IEEE.NUMERIC_STD.ALL;
+library ieee;
+	 use ieee.std_logic_1164.ALL;
+	 use ieee.numeric_std.ALL;
 
 entity std_fifo is
 	generic(	
