@@ -35,15 +35,16 @@ entity uart is
         clock_frequency     : positive
     );
     port (  
-        clk               	 :   in  std_logic;
-        rst               	 :   in  std_logic;    
-        data_in      :   in  std_logic_vector(7 downto 0);
-        data_in_stb  :   in  std_logic;
-        data_in_ack  :   out std_logic;
-        data_out     :   out std_logic_vector(7 downto 0);
-        data_out_stb :   out std_logic;
+        clk                 :   in  std_logic;
+        rst                 :   in  std_logic;    
+        data_in             :   in  std_logic_vector(7 downto 0);
+        data_in_stb         :   in  std_logic;
+        data_in_ack         :   out std_logic;
+        data_out            :   out std_logic_vector(7 downto 0);
+        data_out_stb        :   out std_logic;
         tx                  :   out std_logic;
-        rx                  :   in  std_logic
+        rx                  :   in  std_logic;
+        state_led           :   out std_logic_vector(3 downto 0)
     );
 end uart;
 
@@ -109,7 +110,7 @@ begin
     oversample_clock_divider : process (clk)
     begin
         if rising_edge (clk) then
-            if rst = '1' then
+            if rst = '0' then
                 rx_baud_counter <= (others => '0');
                 rx_baud_tick <= '0';    
             else
@@ -130,7 +131,7 @@ begin
     rxd_synchronise : process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 uart_rx_data_sr <= (others => '1');
             else
                 if rx_baud_tick = '1' then
@@ -147,7 +148,7 @@ begin
     rxd_filter : process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 uart_rx_filter <= (others => '1');
                 uart_rx_bit <= '1';
             else
@@ -194,7 +195,7 @@ begin
     uart_receive_data   : process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 uart_rx_state <= rx_get_start_bit;
                 uart_rx_data_vec <= (others => '0');
                 uart_rx_count <= (others => '0');
@@ -203,10 +204,12 @@ begin
                 uart_rx_data_out_stb <= '0';
                 case uart_rx_state is
                     when rx_get_start_bit =>
+                        state_led(3 downto 2) <= not "01";
                         if rx_baud_tick = '1' and uart_rx_bit = '0' then
                             uart_rx_state <= rx_get_data;
                         end if;
                     when rx_get_data =>
+                        state_led(3 downto 2) <= not "10";
                         if uart_rx_bit_tick = '1' then
                             uart_rx_data_vec(uart_rx_data_vec'high) 
                                 <= uart_rx_bit;
@@ -223,6 +226,7 @@ begin
                             end if;
                         end if;
                     when rx_get_stop_bit =>
+                        state_led(3 downto 2) <= not "11";
                         if uart_rx_bit_tick = '1' then
                             if uart_rx_bit = '1' then
                                 uart_rx_state <= rx_get_start_bit;
@@ -230,6 +234,7 @@ begin
                             end if;
                         end if;                            
                     when others =>
+                        state_led(3 downto 2) <= not "00";
                         uart_rx_state <= rx_get_start_bit;
                 end case;
             end if;
@@ -243,7 +248,7 @@ begin
     tx_clock_divider : process (clk)
     begin
         if rising_edge (clk) then
-            if rst = '1' then
+            if rst = '0' then
                 tx_baud_counter <= (others => '0');
                 tx_baud_tick <= '0';    
             else
@@ -266,7 +271,7 @@ begin
     uart_send_data : process(clk)
     begin
         if rising_edge(clk) then
-            if rst = '1' then
+            if rst = '0' then
                 uart_tx_data <= '1';
                 uart_tx_data_vec <= (others => '0');
                 uart_tx_count <= (others => '0');
@@ -276,6 +281,7 @@ begin
                 uart_rx_data_in_ack <= '0';
                 case uart_tx_state is
                     when tx_send_start_bit =>
+                        state_led(1 downto 0) <= not "01";
                         if tx_baud_tick = '1' and data_in_stb = '1' then
                             uart_tx_data  <= '0';
                             uart_tx_state <= tx_send_data;
@@ -284,6 +290,7 @@ begin
                             uart_tx_data_vec <= data_in;
                         end if;
                     when tx_send_data =>
+                        state_led(1 downto 0) <= not "10";
                         if tx_baud_tick = '1' then
                             uart_tx_data <= uart_tx_data_vec(0);
                             uart_tx_data_vec(
@@ -299,11 +306,13 @@ begin
                             end if;
                         end if;
                     when tx_send_stop_bit =>
+                        state_led(1 downto 0) <= not "11";
                         if tx_baud_tick = '1' then
                             uart_tx_data <= '1';
                             uart_tx_state <= tx_send_start_bit;
                         end if;
                     when others =>
+                        state_led(1 downto 0) <= not "00";
                         uart_tx_data <= '1';
                         uart_tx_state <= tx_send_start_bit;
                 end case;

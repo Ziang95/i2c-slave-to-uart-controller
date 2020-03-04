@@ -16,3 +16,5 @@ db/
 *.qpf
 
 .qsys_edit/
+
+*.srf

@@ -8,7 +8,7 @@ entity uart_fifo_ctrler is
 		clk				: in std_logic;
 		rst				: in std_logic;
 		d_to_f2			: out std_logic_vector(7 downto 0);
-		d_to_uart		: in std_logic_vector(7 downto 0);
+		d_to_uart		: out std_logic_vector(7 downto 0);
 		d_from_f1		: in std_logic_vector(7 downto 0);
 		d_from_uart		: in std_logic_vector(7 downto 0);
 		d_from_uart_rdy: in std_logic;
@@ -17,7 +17,8 @@ entity uart_fifo_ctrler is
 		f1_read_en		: out std_logic;
 		f2_write_en		: out std_logic;
 		f1_empty			: in std_logic;
-		write_uart_en	: out std_logic
+		write_uart_en	: out std_logic;
+		state_led		: out std_logic_vector(1 downto 0)
 	);
 end uart_fifo_ctrler;
 
@@ -129,6 +130,7 @@ begin
 		elsif falling_edge(clk) then
 			if tx_state = WRITE_UART then
 				write_uart_en <= '1';
+				d_to_uart <= byte_to_uart;
 				if d_to_uart_ack = '1' then
 					write_uart_en <= '0';
 					write_uart_done <= '1';
@@ -147,12 +149,14 @@ begin
 		else
 			case rx_state is
 				when READ_UART =>
+					state_led(1) <= not '0';
 					if read_uart_done = '1' then
 						rx_next_state <= WRITE_FIFO;
 					else
 						rx_next_state <= READ_UART;
 					end if;
 				when WRITE_FIFO =>
+					state_led(1) <= not '1';
 					if write_f2_done = '1' then
 						rx_next_state <= READ_UART;
 					else
@@ -169,12 +173,14 @@ begin
 		else
 			case tx_state is
 				when READ_FIFO =>
+					state_led(0) <= not '0';
 					if read_f1_done = '1' then
 						tx_next_state <= WRITE_UART;
 					else
 						tx_next_state <= READ_FIFO;
 					end if;
 				when WRITE_UART =>
+					state_led(0) <= not '1';
 					if write_uart_done = '1' then
 						tx_next_state <= READ_FIFO;
 					else
@@ -183,5 +189,6 @@ begin
 			end case;
 		end if;
 	end process;
+	
 	
 end behavioral;

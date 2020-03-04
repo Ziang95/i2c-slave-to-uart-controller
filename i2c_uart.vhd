@@ -3,15 +3,18 @@ library ieee;
 	 use ieee.numeric_std.all;
 
 entity i2c_uart is
-	port(	rst	:	in std_logic;
+	port(
+			rst	:	in std_logic;
 			clk	:	in std_logic;
 			sda	:	inout std_logic;
 			scl	:	inout std_logic;
 			rx		:	in std_logic;
 			tx		:	out std_logic;
-			empty :	out std_logic;
-			full	:	out std_logic;
-			state_led : out std_logic_vector(3 downto 0)
+			i2cs_state_led : out std_logic_vector(3 downto 0);
+			flow_state_led : out std_logic_vector(1 downto 0);
+			uart_state_led : out std_logic_vector(3 downto 0);
+			fif1_state_led : out std_logic_vector(1 downto 0);
+			fif2_state_led : out std_logic_vector(1 downto 0)
 			);
 end i2c_uart;
 
@@ -19,7 +22,7 @@ architecture portlink of i2c_uart is
 
 component i2c_slave is
 	generic(
-		i2c_address	:	std_logic_vector(7 downto 0) := x"24"
+		i2c_address	:	std_logic_vector(7 downto 0)
 	);
 	port(	
 		rst		:	in std_logic;
@@ -28,9 +31,9 @@ component i2c_slave is
 		sda_in	:	in std_logic;
 		scl_out	:	out std_logic;
 		sda_out	:	out std_logic;
-		data_to_fifo 	: out std_logic_vector(7 downto 0);
+		data_to_fifo	: out std_logic_vector(7 downto 0);
 		data_from_fifo	: in std_logic_vector(7 downto 0);
-		write_fifo_en 	: out std_logic;
+		write_fifo_en	: out std_logic;
 		read_fifo_en	: out std_logic;
 		out_fifo_full	: in std_logic;
 		out_fifo_empty	: in std_logic;
@@ -42,8 +45,8 @@ end component;
 
 component std_fifo is
 	generic(	
-		constant data_width : positive := 8;
-		constant fifo_depth : positive := 256
+		constant data_width : positive;
+		constant fifo_depth : positive
 	);
 	port(	
 		clk		: in 	std_logic;
@@ -58,21 +61,22 @@ component std_fifo is
 end component;
 
 component uart is
-    generic (
-        baud               : positive;
-        clock_frequency    : positive
-    );
-    port (  
-        clk               	:   in  std_logic;
-        rst               	:   in  std_logic;    
-        data_in      		:   in  std_logic_vector(7 downto 0);
-        data_in_stb  		:   in  std_logic;
-        data_in_ack  		:   out std_logic;
-        data_out     		:   out std_logic_vector(7 downto 0);
-        data_out_stb 		:   out std_logic;
-        tx                 :   out std_logic;
-        rx                 :   in  std_logic
-    );
+	generic (
+			baud               : positive;
+			clock_frequency    : positive
+			);
+	port (  
+			clk					:   in  std_logic;
+			rst					:   in  std_logic;    
+			data_in				:   in  std_logic_vector(7 downto 0);
+			data_in_stb			:   in  std_logic;
+			data_in_ack			:   out std_logic;
+			data_out				:   out std_logic_vector(7 downto 0);
+			data_out_stb		:   out std_logic;
+			tx						:   out std_logic;
+			rx						:   in  std_logic;
+			state_led		:   out std_logic_vector(3 downto 0)
+			);
 end component;
 
 component uart_fifo_ctrler is
@@ -80,7 +84,7 @@ component uart_fifo_ctrler is
 		clk				: in std_logic;
 		rst				: in std_logic;
 		d_to_f2			: out std_logic_vector(7 downto 0);
-		d_to_uart		: in std_logic_vector(7 downto 0);
+		d_to_uart		: out std_logic_vector(7 downto 0);
 		d_from_f1		: in std_logic_vector(7 downto 0);
 		d_from_uart		: in std_logic_vector(7 downto 0);
 		d_from_uart_rdy: in std_logic;
@@ -89,7 +93,8 @@ component uart_fifo_ctrler is
 		f1_read_en		: out std_logic;
 		f2_write_en		: out std_logic;
 		f1_empty			: in std_logic;
-		write_uart_en	: out std_logic
+		write_uart_en	: out std_logic;
+		state_led		: out std_logic_vector(1 downto 0)
 	);
 end component;
 
@@ -138,7 +143,8 @@ begin
 							data_out => uart_data_out,
 							data_out_stb => uart_data_out_stb,
 							tx => tx,
-							rx => rx
+							rx => rx,
+							state_led => uart_state_led
 							);
 							
 	FLOW_CTRLER:uart_fifo_ctrler
@@ -153,11 +159,12 @@ begin
 							f1_read_en => f1_read_en,
 							f2_write_en => f2_write_en,
 							f1_empty => f1_empty,
-							write_uart_en => uart_data_in_stb
+							write_uart_en => uart_data_in_stb,
+							state_led => flow_state_led
 							);
 	F1:std_fifo
 			generic map(data_width => 8,
-							fifo_depth => 128)
+							fifo_depth => 64)
 			port map(	clk => clk,
 							rst => rst,
 							write_en => f1_write_en,
@@ -182,7 +189,7 @@ begin
 							);
 	
 	SLAVE_CTL:i2c_slave
-			generic map(i2c_address => x"24") 
+			generic map(i2c_address => x"55") 
 			port map(	rst => rst,
 							clk => clk,
 							scl_in => scl_in,
@@ -197,15 +204,17 @@ begin
 							out_fifo_empty => f1_empty,
 							in_fifo_empty => f2_empty,
 							reset_in_fifo => i2c_to_f2_rst,
-							state_led => state_led
+							state_led => i2cs_state_led
 							);
-		
-	full <= f2_full;
-	empty <= f2_empty;
-	f2_rst <= rst or i2c_to_f2_rst;
-	scl_in 	<= '0' when scl = '0' 		else '1';
-	sda_in 	<= '0' when sda = '0' 		else '1';
-	scl 		<= '0' when scl_out = '0' 	else 'Z';
-	sda 		<= '0' when sda_out = '0' 	else 'Z';
+	
+	fif1_state_led(1) <= not f1_empty;
+	fif1_state_led(0) <= not f1_full;
+	fif2_state_led(1) <= not f2_empty;
+	fif2_state_led(0) <= not f2_full;
+	f2_rst <= rst and i2c_to_f2_rst;
+	scl_in	<= '0' when scl = '0' 		else '1';
+	sda_in	<= '0' when sda = '0' 		else '1';
+	scl		<= '0' when scl_out = '0' 	else 'Z';
+	sda		<= '0' when sda_out = '0' 	else 'Z';
 
 end portlink;

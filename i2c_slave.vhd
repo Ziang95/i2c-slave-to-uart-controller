@@ -4,7 +4,7 @@ library ieee;
 
 entity i2c_slave is
 	generic(
-		i2c_address	:	std_logic_vector(7 downto 0) := x"24"
+		i2c_address	:	std_logic_vector(7 downto 0)
 	);
 	port(	
 		rst		:	in std_logic;
@@ -31,6 +31,7 @@ end i2c_slave;
 architecture behavioral of i2c_slave is
 
 type slave_state is (IDLE,
+							STRT,
 							ANSWR,
 							ACK,
 							RECEV,
@@ -39,7 +40,7 @@ type slave_state is (IDLE,
 							WAIT_ACK,
 							WRITE_FIFO,
 							READ_FIFO,
-							NACK
+							STP
 							);
 
 signal state : slave_state;
@@ -51,7 +52,8 @@ signal sda_ris, sda_fal : std_logic;
 signal recv_byte : std_logic_vector(7 downto 0);
 signal send_byte : std_logic_vector(7 downto 0);
 signal recv_bit_cnt : integer range 0 to 8;
-signal send_bit_cnt : integer range 0 to 9;
+signal answ_bit_cnt : integer range 0 to 8;
+signal send_bit_cnt : integer range 0 to 8;
 
 signal r_w : std_logic;
 
@@ -97,7 +99,7 @@ begin
 		if rst = '0' then
 			start <= '0';
 		elsif falling_edge(clk) then
-			if sda_fal = '1' and scl_pp = '1' then
+			if sda_fal = '1' and scl_p = '1' then
 				start <= '1';
 			else
 				start <= '0';
@@ -110,7 +112,7 @@ begin
 		if rst = '0' then
 			stop <= '0';
 		elsif falling_edge(clk) then
-			if sda_ris = '1' and scl_pp = '1' then
+			if sda_ris = '1' and scl_p = '1' then
 				stop <= '1';
 			else
 				stop <= '0';
@@ -131,8 +133,10 @@ begin
 	begin
 		if rst = '0' then
 			recv_bit_cnt <= 8;
+			answ_bit_cnt <= 8;
+			recv_byte <= "00000000";
 		elsif falling_edge(clk) then
-			if state = ANSWR or state = RECEV then
+			if state = RECEV then
 				if scl_ris = '1' then
 					recv_byte(recv_bit_cnt - 1) <= sda_p;
 					recv_bit_cnt <= recv_bit_cnt - 1;
@@ -140,7 +144,17 @@ begin
 			else
 				recv_bit_cnt <= 8;
 			end if;
+			
+			if state = ANSWR then
+				if scl_ris = '1' then
+					recv_byte(answ_bit_cnt - 1) <= sda_p;
+					answ_bit_cnt <= answ_bit_cnt - 1;
+				end if;
+			else
+				answ_bit_cnt <= 8;
+			end if;
 		end if;
+		
 	end process RECV_CNT_DEC;
 	
 	ACK_FLG_PROC:process(clk, rst)
@@ -148,7 +162,7 @@ begin
 		if rst = '0' then
 			ack_flg <= '0';
 		elsif falling_edge(clk) and scl_fal = '1' then
-			if recv_bit_cnt = 0 then
+			if recv_bit_cnt = 0 or answ_bit_cnt = 0 then
 				ack_flg <= '1';
 			else
 				ack_flg <= '0';
@@ -159,12 +173,12 @@ begin
 	SEND_CNT_DEC:process(clk, rst)
 	begin
 		if rst = '0' then
-			send_bit_cnt <= 9;
+			send_bit_cnt <= 8;
 		elsif falling_edge(clk) and scl_fal = '1' then
 			if state = SEND then
 				send_bit_cnt <= send_bit_cnt - 1;
 			else
-				send_bit_cnt <= 9;
+				send_bit_cnt <= 8;
 			end if;
 		end if;
 	end process SEND_CNT_DEC;
@@ -199,10 +213,12 @@ begin
 			byte_wrttn <= '0';
 			write_fifo_en <= '0';
 		elsif falling_edge(clk) then
-			if state = WRITE_FIFO or state = NACK then
+			if state = WRITE_FIFO or state = STRT or state = STP then
 				if byte_wrttn = '0' and out_fifo_full = '0' then
 					write_fifo_en <= '1';
-					if state = NACK then
+					if state = STRT then
+						data_to_fifo <= "00000000";
+					elsif state = STP then
 						data_to_fifo <= "11111111";
 					else
 						data_to_fifo <= recv_byte;
@@ -248,23 +264,23 @@ begin
 	begin
 		if rst = '0' then
 			fifo_clrd <= '0';
-			reset_in_fifo <= '0';
+			reset_in_fifo <= '1';
 		elsif falling_edge(clk) then
 			if state = CLR_IN_FIFO then
 				if fifo_clrd = '0' then
 					fifo_clrd <= '1';
-					reset_in_fifo <= '1';
-				else
 					reset_in_fifo <= '0';
+				else
+					reset_in_fifo <= '1';
 				end if;
 			else
 				fifo_clrd <= '0';
-				reset_in_fifo <= '0';
+				reset_in_fifo <= '1';
 			end if;
 		end if;
 	end process FIFO_CLRD_PROC;
 	
-	OUTPUT_DECODE:process(rst, state, start, stop, ack_flg, byte_wrttn, send_bit_cnt)
+	OUTPUT_DECODE:process(rst, state, start, stop, ack_flg, byte_wrttn, fifo_clrd, wait_ack_flg, byte_ready, send_bit_cnt)
 	begin
 		if (rst = '0') then
 			next_state <= IDLE;
@@ -274,20 +290,29 @@ begin
 		else
 			case state is
 				when IDLE =>
-					state_led <= not "0001";
+					state_led <= not "0000";
 					scl_out <= '1';
 					sda_out <= '1';
 					if start = '1' then
-						next_state <= ANSWR;
+						next_state <= STRT;
 					else
 						next_state <= IDLE;
+					end if;
+				when STRT =>
+					scl_out <= '1';
+					sda_out <= '1';
+					state_led <= not "0001";
+					if byte_wrttn = '1' then
+						next_state <= ANSWR;
+					else
+						next_state <= STRT;
 					end if;
 				when ANSWR =>
 					state_led <= not "0010";
 					scl_out <= '1';
 					sda_out <= '1';
 					if stop = '1' then
-						next_state <= IDLE;
+						next_state <= STP;
 					elsif ack_flg = '1' then
 						if recv_byte(7 downto 1) = i2c_address(6 downto 0) then
 							r_w <= recv_byte(0);
@@ -320,7 +345,9 @@ begin
 					scl_out <= '1';
 					sda_out <= '1';
 					if stop = '1' then
-						next_state <= IDLE;
+						next_state <= STP;
+					elsif start = '1' then
+						next_state <= STRT;
 					elsif ack_flg = '1' then
 						next_state <= WRITE_FIFO;
 					else
@@ -338,8 +365,14 @@ begin
 				when SEND =>
 					state_led <= not "0110";
 					scl_out <= '1';
-					sda_out <= send_byte(send_bit_cnt - 1);
-					if wait_ack_flg = '1' then
+					if send_bit_cnt > 0 then
+						sda_out <= send_byte(send_bit_cnt - 1);
+					else
+						sda_out <= '1';
+					end if;
+					if stop = '1' then
+						next_state <= STP;
+					elsif wait_ack_flg = '1' then
 						next_state <= WAIT_ACK;
 					else
 						next_state <= SEND;
@@ -350,10 +383,12 @@ begin
 					sda_out <= '1';
 					if wait_ack_flg = '0' then
 						if master_ack_bit = '1' then
-							next_state <= NACK;
+							next_state <= STP;
 						else
 							next_state <= READ_FIFO;
 						end if;
+					else
+						next_state <= WAIT_ACK;
 					end if;
 				when WRITE_FIFO =>
 					state_led <= not "1000";
@@ -373,14 +408,14 @@ begin
 					else
 						next_state <= READ_FIFO;
 					end if;
-				when NACK =>
+				when STP =>
 					state_led <= not "1010";
-					scl_out <= '0';
+					scl_out <= '1';
 					sda_out <= '1';
 					if byte_wrttn = '1' then
 						next_state <= IDLE;
 					else
-						next_state <= NACK;
+						next_state <= STP;
 					end if;
 			end case;
 		end if;

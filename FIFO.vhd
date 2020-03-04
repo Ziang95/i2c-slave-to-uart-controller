@@ -4,8 +4,8 @@ library ieee;
 
 entity std_fifo is
 	generic(	
-		constant data_width : positive := 8;
-		constant fifo_depth : positive := 256
+		constant data_width : positive;
+		constant fifo_depth : positive
 	);
 	port(	
 		clk		: in 	std_logic;
@@ -37,7 +37,7 @@ begin
 				tail := 0;
 				looped := false;
 				full <= '0';
-				empty <= '0';
+				empty <= '1';
 			else
 				if read_en = '1' then
 					if looped = true or head /= tail then
@@ -69,7 +69,9 @@ begin
 				if head = tail then
 					if looped then
 						full <= '1';
+						empty <= '0';
 					else
+						full <= '0';
 						empty <= '1';
 					end if;
 				else
