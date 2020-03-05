@@ -417,6 +417,11 @@ begin
 					else
 						next_state <= STP;
 					end if;
+				when others =>
+					state_led <= not "1011";
+					scl_out <= '1';
+					sda_out <= '1';
+					next_state <= IDLE;
 			end case;
 		end if;
 	end process OUTPUT_DECODE;

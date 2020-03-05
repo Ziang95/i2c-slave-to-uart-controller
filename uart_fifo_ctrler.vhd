@@ -162,6 +162,8 @@ begin
 					else
 						rx_next_state <= WRITE_FIFO;
 					end if;
+				when others =>
+					rx_next_state <= READ_UART;
 			end case;
 		end if;
 	end process;
@@ -186,6 +188,8 @@ begin
 					else
 						tx_next_state <= WRITE_UART;
 					end if;
+				when others =>
+					tx_next_state <= READ_FIFO;
 			end case;
 		end if;
 	end process;

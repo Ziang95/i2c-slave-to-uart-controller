@@ -14,7 +14,8 @@ entity i2c_uart is
 			flow_state_led : out std_logic_vector(1 downto 0);
 			uart_state_led : out std_logic_vector(3 downto 0);
 			fif1_state_led : out std_logic_vector(1 downto 0);
-			fif2_state_led : out std_logic_vector(1 downto 0)
+			fif2_state_led : out std_logic_vector(1 downto 0);
+			f2_d : out std_logic_vector(7 downto 0)
 			);
 end i2c_uart;
 
@@ -207,6 +208,7 @@ begin
 							state_led => i2cs_state_led
 							);
 	
+	f2_d <= not uart_data_out;
 	fif1_state_led(1) <= not f1_empty;
 	fif1_state_led(0) <= not f1_full;
 	fif2_state_led(1) <= not f2_empty;
