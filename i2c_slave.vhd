@@ -1,28 +1,28 @@
 library ieee;
-	 use ieee.std_logic_1164.all;
-	 use ieee.numeric_std.all;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 entity i2c_slave is
 	generic(
 		i2c_address	:	std_logic_vector(7 downto 0)
 	);
 	port(	
-		rst		:	in std_logic;
-		clk		:	in std_logic;
-		sda_in	:	in std_logic;
-		scl_in	: 	in std_logic;
-		scl_out	:	out std_logic;
-		sda_out	:	out std_logic;
+		rst      : in std_logic;
+		clk      : in std_logic;
+		sda_in   : in std_logic;
+		scl_in   : in std_logic;
+		scl_out  : out std_logic;
+		sda_out  : out std_logic;
 		
-		data_to_fifo 	: out std_logic_vector(7 downto 0);
+		data_to_fifo   : out std_logic_vector(7 downto 0);
 		data_from_fifo : in std_logic_vector(7 downto 0);
-		write_fifo_en 	: out std_logic;
-		read_fifo_en 	: out std_logic;
+		write_fifo_en  : out std_logic;
+		read_fifo_en   : out std_logic;
 		
-		out_fifo_full 	: in std_logic;
+		out_fifo_full  : in std_logic;
 		out_fifo_empty : in std_logic;
-		in_fifo_empty 	: in std_logic;
-		reset_in_fifo 	: out std_logic;
+		in_fifo_empty  : in std_logic;
+		reset_in_fifo  : out std_logic;
 		
 		state_led : out std_logic_vector(3 downto 0)
 	);
@@ -217,7 +217,7 @@ begin
 				if byte_wrttn = '0' and out_fifo_full = '0' then
 					write_fifo_en <= '1';
 					if state = STRT then
-						data_to_fifo <= "00000000";
+						data_to_fifo <= "01111111";
 					elsif state = STP then
 						data_to_fifo <= "11111111";
 					else

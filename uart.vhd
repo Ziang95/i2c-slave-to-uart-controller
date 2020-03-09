@@ -34,7 +34,7 @@ entity uart is
         baud                : positive;
         clock_frequency     : positive
     );
-    port (  
+    port (
         clk                 :   in  std_logic;
         rst                 :   in  std_logic;    
         data_in             :   in  std_logic_vector(7 downto 0);

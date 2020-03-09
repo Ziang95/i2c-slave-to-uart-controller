@@ -4,21 +4,21 @@ library ieee;
     use ieee.math_real.all;
 
 entity uart_fifo_ctrler is
-	port(	
-		clk				: in std_logic;
-		rst				: in std_logic;
-		d_to_f2			: out std_logic_vector(7 downto 0);
-		d_to_uart		: out std_logic_vector(7 downto 0);
-		d_from_f1		: in std_logic_vector(7 downto 0);
-		d_from_uart		: in std_logic_vector(7 downto 0);
+	port(
+		clk            : in std_logic;
+		rst            : in std_logic;
+		d_to_f2        : out std_logic_vector(7 downto 0);
+		d_to_uart      : out std_logic_vector(7 downto 0);
+		d_from_f1      : in std_logic_vector(7 downto 0);
+		d_from_uart    : in std_logic_vector(7 downto 0);
 		d_from_uart_rdy: in std_logic;
-		d_to_uart_ack	: in std_logic;
+		d_to_uart_ack  : in std_logic;
 		
-		f1_read_en		: out std_logic;
-		f2_write_en		: out std_logic;
-		f1_empty			: in std_logic;
-		write_uart_en	: out std_logic;
-		state_led		: out std_logic_vector(1 downto 0)
+		f1_read_en     : out std_logic;
+		f2_write_en    : out std_logic;
+		f1_empty       : in std_logic;
+		write_uart_en  : out std_logic;
+		state_led      : out std_logic_vector(1 downto 0)
 	);
 end uart_fifo_ctrler;
 
@@ -30,11 +30,11 @@ architecture behavioral of uart_fifo_ctrler is
 	signal rx_state, rx_next_state : rx_ctrl_state;
 	signal tx_state, tx_next_state : tx_ctrl_state;
 	
-	signal write_uart_done : std_logic;
-	signal write_f2_done : std_logic;
+	signal write_uart_done: std_logic;
+	signal write_f2_done  : std_logic;
 	signal read_uart_done : std_logic;
-	signal read_f1_done 	  : std_logic;
-	signal read_f1_reqst   : std_logic;
+	signal read_f1_done   : std_logic;
+	signal read_f1_reqst  : std_logic;
 	
 	signal byte_to_f2   : std_logic_vector(7 downto 0);
 	signal byte_to_uart : std_logic_vector(7 downto 0);

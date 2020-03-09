@@ -1,21 +1,21 @@
 library ieee;
-	 use ieee.std_logic_1164.ALL;
-	 use ieee.numeric_std.ALL;
+use ieee.std_logic_1164.ALL;
+use ieee.numeric_std.ALL;
 
 entity std_fifo is
-	generic(	
+	generic(
 		constant data_width : positive;
 		constant fifo_depth : positive
 	);
 	port(	
-		clk		: in 	std_logic;
-		rst		: in 	std_logic;
-		write_en	: in 	std_logic;
-		data_in	: in 	std_logic_vector(data_width - 1 downto 0);
-		read_en	: in 	std_logic;
-		data_out	: out	std_logic_vector(data_width - 1 downto 0);
-		empty		: out std_logic;
-		full		: out std_logic
+		clk      : in 	std_logic;
+		rst      : in 	std_logic;
+		write_en : in 	std_logic;
+		data_in  : in 	std_logic_vector(data_width - 1 downto 0);
+		read_en  : in 	std_logic;
+		data_out : out	std_logic_vector(data_width - 1 downto 0);
+		empty    : out std_logic;
+		full     : out std_logic
 	);
 end std_fifo;
 

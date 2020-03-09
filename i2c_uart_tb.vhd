@@ -4,17 +4,16 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity i2c_uart_tb is
-	port(	rst	:	in std_logic
-			);
+	port(rst : in std_logic);
 end entity;
-			
+
 architecture test of i2c_uart_tb is
 
 signal scl : std_logic;
 signal clk : std_logic;
 signal sda : std_logic;
 signal rst_i : std_logic;
-signal rx_i : std_logic;
+signal rx_i  : std_logic;
 
 signal state_led_i : std_logic_vector(3 downto 0);
 signal flow_state_led_i : std_logic_vector(1 downto 0);
@@ -22,12 +21,12 @@ signal flow_state_led_i : std_logic_vector(1 downto 0);
 component i2c_uart is
 port
 (
-	rst	:	in std_logic;
-	clk	:	in std_logic;
-	sda	:	inout std_logic;
-	scl	:	inout std_logic;
-	rx		:	in std_logic;
-	tx		:	out std_logic;
+	rst : in std_logic;
+	clk : in std_logic;
+	sda : inout std_logic;
+	scl : inout std_logic;
+	rx  : in std_logic;
+	tx  : out std_logic;
 	i2cs_state_led : out std_logic_vector(3 downto 0);
 	flow_state_led : out std_logic_vector(1 downto 0);
 	uart_state_led : out std_logic_vector(3 downto 0);

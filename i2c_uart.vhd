@@ -4,12 +4,12 @@ library ieee;
 
 entity i2c_uart is
 	port(
-			rst	:	in std_logic;
-			clk	:	in std_logic;
-			sda	:	inout std_logic;
-			scl	:	inout std_logic;
-			rx		:	in std_logic;
-			tx		:	out std_logic;
+			rst : in std_logic;
+			clk : in std_logic;
+			sda : inout std_logic;
+			scl : inout std_logic;
+			rx  : in std_logic;
+			tx  : out std_logic;
 			i2cs_state_led : out std_logic_vector(3 downto 0);
 			flow_state_led : out std_logic_vector(1 downto 0);
 			uart_state_led : out std_logic_vector(3 downto 0);
@@ -25,39 +25,39 @@ component i2c_slave is
 	generic(
 		i2c_address	:	std_logic_vector(7 downto 0)
 	);
-	port(	
-		rst		:	in std_logic;
-		clk		:	in std_logic;
-		scl_in	:	in std_logic;
-		sda_in	:	in std_logic;
-		scl_out	:	out std_logic;
-		sda_out	:	out std_logic;
-		data_to_fifo	: out std_logic_vector(7 downto 0);
-		data_from_fifo	: in std_logic_vector(7 downto 0);
-		write_fifo_en	: out std_logic;
-		read_fifo_en	: out std_logic;
-		out_fifo_full	: in std_logic;
-		out_fifo_empty	: in std_logic;
-		in_fifo_empty	: in std_logic;
-		reset_in_fifo	: out std_logic;
-		state_led		: out std_logic_vector(3 downto 0)
+	port(
+		rst     : in std_logic;
+		clk     : in std_logic;
+		scl_in  : in std_logic;
+		sda_in  : in std_logic;
+		scl_out : out std_logic;
+		sda_out : out std_logic;
+		data_to_fifo   : out std_logic_vector(7 downto 0);
+		data_from_fifo : in std_logic_vector(7 downto 0);
+		write_fifo_en  : out std_logic;
+		read_fifo_en   : out std_logic;
+		out_fifo_full  : in std_logic;
+		out_fifo_empty : in std_logic;
+		in_fifo_empty  : in std_logic;
+		reset_in_fifo  : out std_logic;
+		state_led      : out std_logic_vector(3 downto 0)
 	);
 end component;
 
 component std_fifo is
-	generic(	
+	generic(
 		constant data_width : positive;
 		constant fifo_depth : positive
 	);
-	port(	
-		clk		: in 	std_logic;
-		rst		: in 	std_logic;
-		write_en	: in 	std_logic;
-		data_in	: in 	std_logic_vector(data_width - 1 downto 0);
-		read_en	: in 	std_logic;
-		data_out	: out	std_logic_vector(data_width - 1 downto 0);
-		empty		: out std_logic;
-		full		: out std_logic
+	port(
+		clk      : in 	std_logic;
+		rst      : in 	std_logic;
+		write_en : in 	std_logic;
+		data_in  : in 	std_logic_vector(data_width - 1 downto 0);
+		read_en  : in 	std_logic;
+		data_out : out	std_logic_vector(data_width - 1 downto 0);
+		empty    : out std_logic;
+		full     : out std_logic
 	);
 end component;
 
@@ -67,35 +67,35 @@ component uart is
 			clock_frequency    : positive
 			);
 	port (  
-			clk					:   in  std_logic;
-			rst					:   in  std_logic;    
-			data_in				:   in  std_logic_vector(7 downto 0);
-			data_in_stb			:   in  std_logic;
-			data_in_ack			:   out std_logic;
-			data_out				:   out std_logic_vector(7 downto 0);
-			data_out_stb		:   out std_logic;
-			tx						:   out std_logic;
-			rx						:   in  std_logic;
-			state_led		:   out std_logic_vector(3 downto 0)
+			clk          : in  std_logic;
+			rst          : in  std_logic;    
+			data_in      : in  std_logic_vector(7 downto 0);
+			data_in_stb  : in  std_logic;
+			data_in_ack  : out std_logic;
+			data_out     : out std_logic_vector(7 downto 0);
+			data_out_stb : out std_logic;
+			tx           : out std_logic;
+			rx           : in  std_logic;
+			state_led    : out std_logic_vector(3 downto 0)
 			);
 end component;
 
 component uart_fifo_ctrler is
 	port(	
-		clk				: in std_logic;
-		rst				: in std_logic;
-		d_to_f2			: out std_logic_vector(7 downto 0);
-		d_to_uart		: out std_logic_vector(7 downto 0);
-		d_from_f1		: in std_logic_vector(7 downto 0);
-		d_from_uart		: in std_logic_vector(7 downto 0);
+		clk            : in std_logic;
+		rst            : in std_logic;
+		d_to_f2        : out std_logic_vector(7 downto 0);
+		d_to_uart      : out std_logic_vector(7 downto 0);
+		d_from_f1      : in std_logic_vector(7 downto 0);
+		d_from_uart    : in std_logic_vector(7 downto 0);
 		d_from_uart_rdy: in std_logic;
-		d_to_uart_ack	: in std_logic;
+		d_to_uart_ack  : in std_logic;
 		
-		f1_read_en		: out std_logic;
-		f2_write_en		: out std_logic;
-		f1_empty			: in std_logic;
-		write_uart_en	: out std_logic;
-		state_led		: out std_logic_vector(1 downto 0)
+		f1_read_en     : out std_logic;
+		f2_write_en    : out std_logic;
+		f1_empty       : in std_logic;
+		write_uart_en  : out std_logic;
+		state_led      : out std_logic_vector(1 downto 0)
 	);
 end component;
 
@@ -214,9 +214,9 @@ begin
 	fif2_state_led(1) <= not f2_empty;
 	fif2_state_led(0) <= not f2_full;
 	f2_rst <= rst and i2c_to_f2_rst;
-	scl_in	<= '0' when scl = '0' 		else '1';
-	sda_in	<= '0' when sda = '0' 		else '1';
-	scl		<= '0' when scl_out = '0' 	else 'Z';
-	sda		<= '0' when sda_out = '0' 	else 'Z';
+	scl_in <= '0' when scl = '0'      else '1';
+	sda_in <= '0' when sda = '0'      else '1';
+	scl    <= '0' when scl_out = '0'  else 'Z';
+	sda    <= '0' when sda_out = '0'  else 'Z';
 
 end portlink;
